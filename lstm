@@ -50,12 +50,11 @@ print('테스트 데이터의 크기 :', test_X.shape, test_y.shape)
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, LSTM, Dropout
 model = Sequential()
-model.add(LSTM(units=20, activation='relu', return_sequences=True, input_shape=(10, 4)))
-model.add(Dropout(0.1))
-model.add(LSTM(units=20, activation='relu'))
-model.add(Dropout(0.1))
+model.add(LSTM(units=20, activation='tanh', return_sequences=True, input_shape=(10, 4)))
+model.add(Dropout(0.2))  # Dropout 비율 조정
+model.add(LSTM(units=20, activation='tanh'))
+model.add(Dropout(0.2))  # Dropout 비율 조정
 model.add(Dense(units=1))
-model.summary()
 model.compile(optimizer='adam', loss='mean_squared_error')
 model.fit(train_X, train_y, epochs=100, batch_size=70)
 pred_y = model.predict(test_X)
