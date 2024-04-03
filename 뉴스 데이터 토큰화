@@ -9,8 +9,8 @@ from nltk.tokenize import word_tokenize
 from collections import Counter
 from nltk.corpus import stopwords
 # 불용어 추가
-additional_stopwords = ['``', '...', ',', '/', '.', '[', ']', "'", "''",'’','‘','(',')','“','”','?']  # 추가할 불용어 리스트를 정의
-stop_list = stopwords.words('english') + additional_stopwords  # NLTK의 영어 불용어 리스트에 추가된 불용어를 포함하여 새로운 불용어 리스트를 생성
+additional_stopwords = ['``', '...', ',', '/', '.', '[', ']', "'", "''", '’', '‘', '(', ')', '“', '”', '?','%']
+stop_list = stopwords.words('english') + additional_stopwords
 
 # CSV 파일 열기
 with open('D:/big16/final-dev/final_prac/하현수/뉴스 데이터/뉴스 크롤링/관련주 크롤링/루닛.csv', 'r', encoding='UTF-8') as file:
@@ -20,21 +20,23 @@ with open('D:/big16/final-dev/final_prac/하현수/뉴스 데이터/뉴스 크�
     header = next(reader)
     
     # 텍스트 데이터 열 인덱스 지정
-    text_column_index = 1  # 예시로 두 번째 열을 텍스트 데이터로 가정
+    text_column_index = 1
     
     # 텍스트 데이터 토큰화 및 감정 분석
     tokens = []
     for row in reader:
         text = row[text_column_index]
         text_tokens = word_tokenize(text)  # 단어 토큰화
-        filtered_tokens = [word for word in text_tokens if word.lower() not in stop_list]  # 불용어 필터링
+        
+        # 단어 정규화 및 불용어 필터링
+        filtered_tokens = [word.replace("'루닛", "루닛") for word in text_tokens if word.lower() not in stop_list]
+        
         tokens.extend(filtered_tokens)
         
     # 토큰화된 단어들의 빈도수 계산
     word_freq = Counter(tokens)
 
-print(word_freq)
-
+# Counter 객체를 DataFrame으로 변환
 df = pd.DataFrame(list(word_freq.items()), columns=['단어', '빈도수'])
 
 # 빈도수에 따라 내림차순으로 정렬
@@ -43,4 +45,5 @@ df_sorted = df.sort_values(by='빈도수', ascending=False)
 # 상위 15개 단어만 선택
 top_15_words = df_sorted.head(15)
 
+# 결과 출력
 top_15_words
