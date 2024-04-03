@@ -1,18 +1,19 @@
 import csv
 import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.tokenize import word_tokenize
 from collections import Counter
 from nltk.corpus import stopwords
-
-nltk.download('vader_lexicon')
-nltk.download('stopwords')
-
-stopwords = '``','…'
-stop_iist = stopwords.split(',')
+import pandas as pd
+import csv
+from nltk.tokenize import word_tokenize
+from collections import Counter
+from nltk.corpus import stopwords
+# 불용어 추가
+additional_stopwords = ['``', '...', ',', '/', '.', '[', ']', "'", "''",'’','‘','(',')','“','”','?']  # 추가할 불용어 리스트를 정의
+stop_list = stopwords.words('english') + additional_stopwords  # NLTK의 영어 불용어 리스트에 추가된 불용어를 포함하여 새로운 불용어 리스트를 생성
 
 # CSV 파일 열기
-with open('../뉴스 크롤링/관련주 크롤링/하이닉스1.csv', 'r', encoding='utf-8') as file:
+with open('D:/big16/final-dev/final_prac/하현수/뉴스 데이터/뉴스 크롤링/관련주 크롤링/루닛.csv', 'r', encoding='UTF-8') as file:
     reader = csv.reader(file)
     
     # 헤더 읽기
@@ -26,18 +27,20 @@ with open('../뉴스 크롤링/관련주 크롤링/하이닉스1.csv', 'r', enco
     for row in reader:
         text = row[text_column_index]
         text_tokens = word_tokenize(text)  # 단어 토큰화
-        tokens.extend(text_tokens)
+        filtered_tokens = [word for word in text_tokens if word.lower() not in stop_list]  # 불용어 필터링
+        tokens.extend(filtered_tokens)
         
     # 토큰화된 단어들의 빈도수 계산
     word_freq = Counter(tokens)
-    
-    # 감정 분석 수행
-    sia = SentimentIntensityAnalyzer()
-    sentiment_scores = {}
-    for word, freq in word_freq.items():
-        sentiment_score = sia.polarity_scores(word)['compound']
-        sentiment_scores[word] = sentiment_score * freq
-        
-# 감정 분석 결과 출력
-for word, score in sentiment_scores.items():
-    print(f"{word}: {score}")
+
+print(word_freq)
+
+df = pd.DataFrame(list(word_freq.items()), columns=['단어', '빈도수'])
+
+# 빈도수에 따라 내림차순으로 정렬
+df_sorted = df.sort_values(by='빈도수', ascending=False)
+
+# 상위 15개 단어만 선택
+top_15_words = df_sorted.head(15)
+
+top_15_words
