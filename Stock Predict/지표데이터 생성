@@ -33,3 +33,10 @@ for i in range(0, resultDf.shape[0]):
     minDf['SMA5'] = minDf[minDf['날짜'] == resultDf['날짜'].iloc[i]]['SMA5'].fillna(resultDf['SMA5'][i])
 
 minDf[minDf['날짜'] == 20220908]
+
+minDf[['SMA5','SMA20','UPPER','MAVG','LOWER','RSI','MACD','AROONUP','AROONDN']] = np.nan
+
+for i in range(0, resultDf.shape[0]):
+    minDf['SMA5'] = minDf[minDf['날짜'] == resultDf['날짜'].iloc[i]]['SMA5'].fillna(resultDf['SMA5'][i])
+
+minDf[minDf['날짜'] == 20220908]
