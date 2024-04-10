@@ -1,40 +1,35 @@
 # 주식 지표 계산
-import talib
 import pandas as pd
+import numpy as np
+import talib
 
-class jipyo:
-    def __init__(self, name):
-        self.name = name
+minDf = pd.read_csv('./Stock_Trading_System/32bit/hapminstockdata/루닛 분 단위 주식 데이터.csv', encoding='euc-kr')
+dayDf = pd.read_csv('./Stock_Trading_System/32bit/hapdaystockdata/루닛 일 단위 주식 데이터.csv', encoding='euc-kr')
+newsDf = pd.read_csv('./Stock_Trading_System/32bit/hapnewsdata/루닛 뉴스 데이터.csv', encoding='utf-8')
 
-    def gaesan(self):
-        print('[시스템]:'+self.name+' 종목의 지표 데이터 생성중...')
-        dayData = pd.read_csv('./hapdaystockdata/'+self.name+' 일 단위 주식 데이터.csv', encoding='euc-kr')
+upper, middle, lower = talib.BBANDS(dayDf['종가'], timeperiod=20)
+macd, macdsignal, macdhist = talib.MACD(dayDf['종가'], fastperiod=12, slowperiod=26, signalperiod=9)
+ar_up, ar_dn = talib.AROON(dayDf['고가'], dayDf['저가'], timeperiod=14)
+resultDf = pd.DataFrame({
+    '종목코드':dayDf['종목코드'],
+    '종목명':dayDf['종목명'],
+    '날짜':dayDf['날짜'],
+    'SMA5':talib.SMA(dayDf['종가'], timeperiod=5),
+    'SMA20':talib.SMA(dayDf['종가'], timeperiod=10),
+    'UPPER':upper,
+    'MAVG':middle,
+    'LOWER':lower,
+    'RSI':talib.RSI(dayDf['종가'], timeperiod=14),
+    'MACD':macd,
+    'AROONUP':ar_up,
+    'AROONDN':ar_dn
+    })
+resultDf = resultDf[33:].reset_index()
+resultDf.drop('index', axis=1, inplace=True)
 
-        code = dayData['종목코드']
-        name = dayData['종목명']
-        date = dayData['날짜']
-        SMA5 = talib.SMA(dayData['종가'], timeperiod=5)
-        SMA20 = talib.SMA(dayData['종가'], timeperiod=10)
-        upper, middle, lower = talib.BBANDS(dayData['종가'], timeperiod=20)
-        RSI = talib.RSI(dayData['종가'], timeperiod=14)
-        macd, macdsignal, macdhist = talib.MACD(dayData['종가'], fastperiod=12, slowperiod=26, signalperiod=9)
-        ar_up, ar_dn = talib.AROON(dayData['고가'], dayData['저가'], timeperiod=14)
+minDf[['SMA5','SMA20','UPPER','MAVG','LOWER','RSI','MACD','AROONUP','AROONDN']] = np.nan
 
-        jipyoDf = pd.DataFrame({
-              '종목코드':code
-            , '종목명':name
-            , '날짜':date
-            , 'SMA5':SMA5
-            , 'SMA20':SMA20
-            , 'UPPER':upper
-            , 'MAVG':middle
-            , 'LOWER':lower
-            , 'RSI':RSI
-            , 'MACD':macd
-            , 'AROONUP':ar_up
-            , 'AROONDN':ar_dn
-        })
-        jipyoDf['SMA5'] = jipyoDf['SMA5'].astype('float64')
+for i in range(0, resultDf.shape[0]):
+    minDf['SMA5'] = minDf[minDf['날짜'] == resultDf['날짜'].iloc[i]]['SMA5'].fillna(resultDf['SMA5'][i])
 
-        jipyoDf[33:].to_csv('./jipyo/'+self.name+' 지표 데이터.csv', encoding='euc-kr', index=False)
-        print('[시스템]:'+self.name+' 종목의 지표 데이터 생성중 생성 완료!')
+minDf[minDf['날짜'] == 20220908]
