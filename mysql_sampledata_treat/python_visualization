@@ -1,0 +1,171 @@
+# sql과 python 연결
+import mysql.connector
+import pandas as pd
+import matplotlib.pyplot as plt
+conn = mysql.connector.connect(
+    host='localhost',
+    user='root',
+    password='5424',
+    database='classicmodels'
+)
+# 최다구매자 쿼리문
+vip_customers_query = """
+SELECT
+    o.customerNumber,
+    COUNT(DISTINCT o.orderNumber) AS order_count,
+    SUM(p.amount) AS total_spent
+FROM
+    orders o
+JOIN
+    payments p ON o.customerNumber = p.customerNumber
+GROUP BY
+    o.customerNumber
+ORDER BY
+    total_spent DESC
+LIMIT 10;   
+"""
+# vip 데이터 프레임 로딩
+vip_df = pd.read_sql_query(vip_customers_query, conn)
+
+# 시각화
+plt.figure(figsize=(10,6))
+plt.bar(vip_df['customerNumber'].astype(str), vip_df['order_count'], color='Lime')
+plt.xlabel('Customer Number')
+plt.ylabel('Order Count')
+plt.title('VIP Orders')
+plt.xticks(rotation=50)
+plt.show
+# 시각화
+plt.figure(figsize=(10,6))
+plt.bar(vip_df['customerNumber'].astype(str), vip_df['total_spent'], color='Lime')
+plt.xlabel('Customer Number')
+plt.ylabel('total spent')
+plt.title('VIP Orders')
+plt.xticks(rotation=50)
+plt.show
+# 특정 기간 내 구매금액 변화량별 상위 고객 쿼리
+purchase_change_query = """
+SELECT p.customerNumber,
+SUM(case when p.paymentDate BETWEEN '2004-01-01' AND '2004-12-30' then p.amount ELSE 0 END) AS previous_period_total,
+SUM(case when p.paymentDate BETWEEN '2004-12-30' AND '2005-12-31' then p.amount ELSE 0 END) AS recent_period_total
+FROM payments p
+INNER JOIN (
+				SELECT customerNumber
+				FROM payments
+				group BY customerNumber
+				ORDER BY SUM(amount) DESC 
+) AS vip_customers ON p.customerNumber = vip_customers.customerNumber GROUP BY p.customerNumber;
+"""
+purchase_change_df = pd.read_sql_query(purchase_change_query,conn)
+# 구매금액 변화 계산하기
+purchase_change_df['change_in_spending'] = purchase_change_df['recent_period_total'] - purchase_change_df['previous_period_total']
+# 절대값에 따른 변화량 크기 상위 10명
+
+top_10_customers_change = purchase_change_df.assign(
+    abs_change_in_spending=purchase_change_df['change_in_spending'].abs()
+).nlargest(10, 'abs_change_in_spending')
+
+top_10_customers_change
+# 시각화
+plt.figure(figsize=(10,5))
+plt.bar(top_10_customers_change['customerNumber'].astype(str),
+        purchase_change_df.loc[top_10_customers_change.index, 'change_in_spending'], color='lime'
+)
+plt.xlabel('customer num')
+plt.ylabel('change in total spent')
+plt.title('top 10 customer spending')
+plt.tight_layout()
+plt.show()
+# 구매 변화량 증가, 감소한 상위 10명
+increased_top_10 = purchase_change_df[purchase_change_df['change_in_spending']>0].nlargest(10, 'change_in_spending')
+
+decreased_top_10 = purchase_change_df[purchase_change_df['change_in_spending']<0].nsmallest(10, 'change_in_spending')\
+.sort_values(by='change_in_spending', ascending=True)
+increased_top_10
+decreased_top_10
+# 증가한 고객 상위10명 시각화 
+plt.figure(figsize=(10,5))
+plt.bar(increased_top_10['customerNumber'].astype(str),increased_top_10['change_in_spending'], color='red')
+plt.xlabel('customer num')
+plt.ylabel('increased spending')
+plt.title('increased customer top 10')
+plt.xticks(rotation=90);plt.tight_layout();plt.show()
+# 감소한 고객 상위 10명 시각화
+plt.figure(figsize=(10,5))
+plt.bar(decreased_top_10['customerNumber'].astype(str),decreased_top_10['change_in_spending'], color='blue')
+plt.xlabel('customer num')
+plt.ylabel('decreased spending')
+plt.title('decreased customer top 10')
+plt.xticks(rotation=90);plt.tight_layout();plt.show()
+# 일별 매출액 추출 쿼리문
+total_sales_query = """
+SELECT a.orderDate, SUM(priceEach*quantityordered) AS sales
+FROM orders a
+LEFT JOIN
+orderdetails b
+ON a.orderNumber = b.orderNumber
+GROUP BY a.orderDate
+ORDER BY a.orderDate
+LIMIT 15;
+"""
+total_sales_df = pd.read_sql_query(total_sales_query,conn)
+# 매출액 높은 날 top10 시각화
+sales_top10 = total_sales_df.nlargest(10, 'sales')
+
+plt.figure(figsize=(10,6))
+plt.bar(sales_top10['orderDate'].astype(str),sales_top10['sales'], color='blue')
+plt.xlabel('order days')
+plt.ylabel('total saels')
+plt.title('total sales top 10')
+plt.xticks(rotation=45);plt.tight_layout();plt.show()
+sales_top10
+# 월별 매출액 쿼리문
+month_sales_query = """SELECT SUBSTR(a.orderDate,1,7) MONTH,
+SUM(priceEach*quantityOrdered) AS sales
+FROM orders a
+LEFT JOIN
+orderdetails b
+ON a.orderNumber = b.orderNumber
+GROUP BY SUBSTR(a.orderdate,1,7)
+ORDER BY SUBSTR(a.orderdate,1,7)
+LIMIT 15;
+"""
+month_sales_df = pd.read_sql_query(month_sales_query,conn) 
+month_top10 = month_sales_df.nlargest(10,'sales')
+month_top10
+plt.figure(figsize=(10,6))
+plt.bar(month_top10['MONTH'],month_top10['sales'])
+plt.xlabel('MONTH')
+plt.ylabel('sales')
+plt.title('MONTH sales top 10')
+plt.xticks(rotation=45);plt.tight_layout();plt.show()
+# 국가별 매출 쿼리문
+customers_country_query = """
+SELECT country
+,SUM(priceEach*quantityOrdered) AS sales
+,city
+FROM orders o
+LEFT JOIN orderdetails b
+ON o.orderNumber = b.orderNumber
+LEFT JOIN customers c
+ON o.customerNumber = c.customerNumber
+GROUP BY country, city
+;
+"""
+country_df = pd.read_sql_query(customers_country_query, conn)
+city_top10 = country_df.nlargest(10, 'sales')
+city_top10
+# 국가별 시각화
+plt.figure(figsize=(10,6))
+plt.bar(country_df['country'],country_df['sales'], color='blue')
+plt.xlabel('country')
+plt.ylabel('sales')
+plt.title('country sales')
+plt.xticks(rotation=45);plt.tight_layout();plt.show()
+# 나라별 시각화
+plt.figure(figsize=(10,6))
+plt.bar(city_top10['city'],city_top10['sales'], color='red')
+plt.xlabel('city')
+plt.ylabel('sales')
+plt.title('city sales')
+plt.xticks(rotation=45);plt.tight_layout();plt.show()
