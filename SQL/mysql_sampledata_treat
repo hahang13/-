@@ -1,0 +1,78 @@
+-- 최다구매자
+SELECT
+    o.customerNumber,
+    COUNT(DISTINCT o.orderNumber) AS order_count,
+    SUM(p.amount) AS total_spent
+FROM
+    orders o
+JOIN
+    payments p ON o.customerNumber = p.customerNumber
+GROUP BY
+    o.customerNumber
+ORDER BY
+    total_spent DESC
+LIMIT 10;
+
+# 일별 매출액
+SELECT a.orderDate, SUM(priceEach*quantityordered) AS sales
+FROM orders a
+LEFT JOIN
+orderdetails b
+ON a.orderNumber = b.orderNumber
+GROUP BY a.orderDate
+ORDER BY a.orderDate
+LIMIT 15;
+
+-- 월별 매출액
+SELECT a.orderDate, SUM(priceEach*quantityordered) AS sales
+FROM orders a
+LEFT JOIN
+orderdetails b
+ON a.orderNumber = b.orderNumber
+GROUP BY SUBSTR(a.orderDate, 1, 7)
+ORDER BY SUBSTR(a.orderDate, 1, 7)
+LIMIT 15;
+
+--
+SELECT SUBSTR(a.orderDate,1,7) MOUNTH,
+SUM(priceEach*quantityOrdered) AS sales
+FROM orders a
+LEFT JOIN
+orderdetails b
+ON a.orderNumber = b.orderNumber
+GROUP BY SUBSTR(a.orderdate,1,7)
+ORDER BY SUBSTR(a.orderdate,1,7)
+LIMIT 15;
+
+-- 국가별 매출
+SELECT *
+FROM orders o
+LEFT JOIN orderdetails b
+ON o.orderNumber = b.orderNumber
+LEFT JOIN customers c
+ON o.customerNumber = c.customerNumber
+;
+
+SELECT country
+,SUM(priceEach*quantityOrdered) AS sales
+,city
+FROM orders o
+LEFT JOIN orderdetails b
+ON o.orderNumber = b.orderNumber
+LEFT JOIN customers c
+ON o.customerNumber = c.customerNumber
+GROUP BY country, city
+;
+
+SELECT country
+FROM customers;
+
+-- 재구매율
+SELECT COUNT(DISTINCT RS.oc2) / COUNT(DISTINCT RS.oc1) AS retention
+FROM(
+SELECT o1.orderDate AS od1 , o2.orderDate AS od2, o1.customerNumber AS oc1, o2.customerNumber AS oc2
+FROM orders o1
+LEFT JOIN orders o2
+ON o1.customerNumber = o2.customerNumber
+AND YEAR(o1.orderDate) +1 =YEAR(o2.orderDate)) AS RS
+;
