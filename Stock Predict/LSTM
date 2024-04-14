@@ -51,17 +51,19 @@ print('테스트 데이터의 크기 :', test_X.shape, test_y.shape)
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, LSTM, Dropout
 
+# 신경망 생성 후 모델생성
 model = Sequential()
 model.add(LSTM(units=20, activation='tanh', return_sequences=True, input_shape=(10, 6)))
 model.add(Dropout(0.2))  # Dropout 비율 조정
 model.add(LSTM(units=20, activation='tanh'))
 model.add(Dropout(0.2))  # Dropout 비율 조정
 model.add(Dense(units=1))
-
 model.compile(optimizer='adam', loss='mean_squared_error')
+# 훈련데이터 학습 및 테스트데이터 예측
 model.fit(train_X, train_y, epochs=30, batch_size=70)
 pred_y = model.predict(test_X)
 pred_y = model.predict(test_X)
+
 plt.figure()
 plt.plot(test_y, color='red', label='Real stock price')
 plt.plot(pred_y, color='blue', label='Predict stock price')
