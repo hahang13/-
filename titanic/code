@@ -1,0 +1,326 @@
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore")
+%matplotlib inline
+
+# 학습에 사용할 데이터 -> 모델 생성
+train = pd.read_csv('./data/데이터/02 데이터/titanic/train.csv')
+# 모델 검증에 사용할 데이터
+test = pd.read_csv('./data/데이터/02 데이터/titanic/test.csv')
+train.info()
+---
+### Title Mapping, 원핫인코딩
+- Master ==> 0
+- Miss : Mlle, Ms, Countess ==> 1      
+- Mrs : 'Lady','Dona' ==> 2
+- Mr : 'Mme', 'Dr', 'Sir','Capt','Rev','Major','Col','Jonkheer','Don'  ==> 3 
+train['Title'] = train['Name'].str.extract(' ([a-zA-Z]+)\. ', expand=False)
+test['Title'] = test['Name'].str.extract(' ([a-zA-Z]+)\. ', expand=False)
+train['Title'].unique()
+test['Title'].unique()
+# Title other 처리 
+train['Title'] = train['Title'].replace(['Mlle', 'Ms', 'Countess'],'Miss')
+train['Title'] = train['Title'].replace(['Mme', 'Dr', 'Sir','Capt','Rev','Major','Col','Jonkheer','Don'],'Mr')
+train['Title'] = train['Title'].replace(['Lady','Dona'],'Mrs')
+
+train
+# test other 처리 
+test['Title'] = test['Title'].replace(['Mlle', 'Ms', 'Countress'],'Miss')
+test['Title'] = test['Title'].replace(['Mme', 'Dr', 'Sir','Capt','Rev','Major','Col','Jonkheer'],'Mr')
+test['Title'] = test['Title'].replace(['Lady','Dona'],'Mrs')
+
+test
+train = pd.get_dummies(train, columns = ['Title'],dtype=int)
+test = pd.get_dummies(test, columns = ['Title'],dtype=int)
+
+### 성별 원핫인코딩
+train = pd.get_dummies(train, columns = ['Sex'],dtype=int)
+test = pd.get_dummies(test, columns = ['Sex'],dtype=int)
+# sex_mapping = {'male':0,'female':1}
+
+# train['Sex'] = train['Sex'].map(sex_mapping)
+# test['Sex'] =  test['Sex'].map(sex_mapping)
+### Embarked Feature
+#### 원핫인코딩
+train_test_data = [test,train]
+for dataset in train_test_data:
+    dataset['Embarked'] = dataset['Embarked'].fillna('S')
+train = pd.get_dummies(train, columns= ['Embarked'],dtype=int)
+test = pd.get_dummies(test, columns= ['Embarked'],dtype=int)
+---
+### Cabin Nan처리, Feature
+- NaN 값처리  ==>  Pclass별 많은 방으로 채우기 
+- Mapping  ==>  'A':0,'B':0.4,'C':0.8,'D':1.2,'E':1.6,'F':2.0,'G':2.4,'T':2.8
+train_test_data = [train, test]
+
+for train_cabin in train_test_data :
+    train_cabin['Cabin'] = train_cabin['Cabin'].str[:1]
+
+train
+cabin_mapping = {'A':1,'T':1,'B':1,'C':2,'D':2,'E':3,'F':3,'G':3}
+train['Cabin'] = train['Cabin'].map(cabin_mapping)
+test['Cabin'] = test['Cabin'].map(cabin_mapping)
+train.loc[train['Pclass']==1,'Cabin']=train.loc[train['Pclass']==1,'Cabin'].fillna(1)
+train.loc[train['Pclass']==2,'Cabin']=train.loc[train['Pclass']==2,'Cabin'].fillna(2)
+train.loc[train['Pclass']==3,'Cabin']=train.loc[train['Pclass']==3,'Cabin'].fillna(3)
+test.loc[test['Pclass']==1,'Cabin']=test.loc[test['Pclass']==1,'Cabin'].fillna(1)
+test.loc[test['Pclass']==2,'Cabin']=test.loc[test['Pclass']==2,'Cabin'].fillna(2)
+test.loc[test['Pclass']==3,'Cabin']=test.loc[test['Pclass']==3,'Cabin'].fillna(3)
+# Cabin NaN 처리 
+train_test_data = [train, test]
+
+for train_cabin_nan in train_test_data : 
+    train_cabin_nan.loc[(train_cabin_nan['Pclass'] ==1 ) & (train_cabin_nan['Cabin']).isnull(), 'Cabin'] = 'D'
+    train_cabin_nan.loc[(train_cabin_nan['Pclass'] ==2 ) & (train_cabin_nan['Cabin']).isnull(), 'Cabin'] = 'F'
+    train_cabin_nan.loc[(train_cabin_nan['Pclass'] ==3 ) & (train_cabin_nan['Cabin']).isnull(), 'Cabin'] = 'G'
+train.info()
+test.info()
+---
+### Age NaN
+- NAN 처리
+- Age Feature
+# Age Feature 
+
+trian_test_data = [train, test]
+
+for train_cp in trian_test_data : 
+    train_cp.loc[train_cp['Age']<=14,'Age'] = 0
+    train_cp.loc[(train_cp['Age'] > 14) & (train_cp['Age'] <= 30),'Age'] = 1
+    train_cp.loc[(train_cp['Age'] > 30) & (train_cp['Age'] <= 40),'Age'] = 2
+    train_cp.loc[(train_cp['Age'] > 40) & (train_cp['Age'] <= 58),'Age'] = 3
+    train_cp.loc[(train_cp['Age'] > 58),'Age'] = 4 
+train['Age'].value_counts(), test['Age'].value_counts()
+train[train['Age'].isnull()]
+# train_cp['Title']별 age nan 평균값으로 처리
+for train_title in trian_test_data:
+    train_title.loc[(train_title['Title_Master']==1)&(train_title['Age']).isnull(), 'Age'] = 0
+    train_title.loc[(train_title['Title_Miss']==1)&(train_title['Age']).isnull(), 'Age'] = 1
+    train_title.loc[(train_title['Title_Mr']==1)&(train_title['Age']).isnull(), 'Age'] = 2
+    train_title.loc[(train_title['Title_Mrs']==1)&(train_title['Age']).isnull(), 'Age'] = 3
+
+
+## 연속형데이터를 비교해 이상치 제거하려 했으나 정확도가 떨어졌음
+## F-Size
+train['Fsize']= train['SibSp'] + train['Parch'] + 1
+test['Fsize']= test['SibSp'] + test['Parch'] + 1
+train
+## 그룹사이즈 만들기
+train_test_data = [train,test]
+
+for dataset in train_test_data:
+    dataset['Ticket_'] = dataset['Ticket'].str.split(' ').str[1]
+    dataset['Ticket_'].fillna(dataset['Ticket'].str.extract(r'(\d+)')[0], inplace=True)
+    dataset.loc[dataset['Ticket_'] == '2.','Ticket_'] = train['Ticket'].str.split('.').str[1]
+    dataset.loc[dataset['Ticket_'] == 'Basle','Ticket_'] = 541
+    dataset['Ticket_'].fillna(1601, inplace=True)
+    dataset['Ticket_'].value_counts()
+
+# train
+
+from collections import Counter
+
+df = []
+
+for i,ticket in enumerate(train['Ticket_']):
+    df.append(Counter(train['Ticket_'])[ticket])
+    
+train['GroupSize'] = df
+train['GroupSize'].value_counts()
+
+# test
+
+df = []
+
+for i,ticket in enumerate(test['Ticket_']):
+    df.append(Counter(test['Ticket_'])[ticket])
+    
+test['GroupSize'] = df
+test['GroupSize'].value_counts()
+## 페어 
+# 4.6 Fare : 가격
+test['Fare'].fillna(
+    test.groupby('Pclass')['Fare'].transform('median')
+    , inplace=True)
+test['Fare'].isnull().sum()
+train['Fare'] = train['Fare']/train['GroupSize']
+test['Fare'] = test['Fare']/test['GroupSize']
+train
+## 드랍
+drop_feature=['Age','Name','SibSp','Parch','Ticket','Sex_female','Sex_male','Fsize']
+
+train = train.drop(drop_feature, axis=1)
+test = test.drop(drop_feature, axis=1)
+## Fsize 나누기
+train
+test.loc[test['Ticket_']=='C','Ticket_']= 3101291
+test
+## 페어 구간 나누고, 원핫인코딩
+# fare 구간 나누기 
+train_test_data = [train, test]
+
+for fare_feature in train_test_data : 
+     fare_feature.loc[fare_feature['Fare'] <=10, 'Fare'] = 0
+     fare_feature.loc[(fare_feature['Fare'] > 10) & (fare_feature['Fare']<=30)  , 'Fare'] = 1
+     fare_feature.loc[(fare_feature['Fare'] > 30) & (fare_feature['Fare']<=60) , 'Fare'] = 2
+     fare_feature.loc[(fare_feature['Fare'] > 60) & (fare_feature['Fare']<=150) , 'Fare'] = 3
+     fare_feature.loc[fare_feature['Fare'] > 150, 'Fare'] = 4
+
+train['Fare'].value_counts(), test['Fare'].value_counts()
+train
+train = pd.get_dummies(train, columns= ['Fare'],dtype=int)
+test = pd.get_dummies(test, columns= ['Fare'],dtype=int)
+train.shape
+test.isnull().sum()
+train_data = train.drop('Survived', axis=1)
+target = train['Survived']
+
+train_data.shape, target.shape
+train
+train.corr()
+---
+### Modeling
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+from sklearn.linear_model import LogisticRegression
+import numpy as np
+import xgboost as xgb
+from xgboost import plot_importance
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import train_test_split
+## ★ 최적의 파라미터 구하기 
+y_titanic_df = target
+X_titanic_df = train_data
+X_train, X_test, y_train, y_test = train_test_split(X_titanic_df, y_titanic_df, test_size=0.2, random_state=42)
+train.isnull().sum()
+# k_fold = KFold(n_splits=10, shuffle=True, random_state=42)
+# clf = RandomForestClassifier() # Model object
+# scoring = 'accuracy' # 평가지표 : 정확도
+# parameters = {'max_depth':[4,5,6],'n_estimators':[280,300,320],'max_features':[2,3,4]}
+# grid_dclf = GridSearchCV(clf, param_grid=parameters, scoring='accuracy', cv=5)
+# grid_dclf.fit(X_train,y_train)
+# print(grid_dclf.best_params_)
+# print(grid_dclf.best_score_)
+# score = cross_val_score(clf, train_data, target, cv=k_fold, n_jobs=-1, scoring=scoring)
+## 랜덤포레스트
+# # 점수 확인
+
+k_fold = KFold(n_splits=10, shuffle=True, random_state= 156)
+clf = RandomForestClassifier(n_estimators=300, max_depth=5, max_features=3)
+scoring = 'accuracy'
+score = cross_val_score(clf, train_data, target, cv = k_fold, n_jobs=-1, scoring=scoring)
+
+print(score.mean())
+## 라이트지비엠
+# from lightgbm import LGBMClassifier
+# from xgboost import XGBClassifier
+# clf = LGBMClassifier()
+# score7 = cross_val_score(clf, train_data, target, cv=k_fold, n_jobs=1, scoring=scoring)
+
+# # round(np.mean(score7)*100, 2)
+
+# print(score7.mean())
+## 하이퍼opt로 최적의 파라미터 찾기
+# !pip install hyperopt
+# from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
+
+# searchpara = {'max_depth': hp.quniform('max_depth',5,20,1),
+#               'min_child_weight': hp.quniform('min_child_weight', 1,2,1),
+#               'learning_late': hp.uniform('learning_late',0.01,0.2),
+#               'colsample_bytree': hp.uniform('colsample_bytree', 0.5,1),
+#             #   'lambda' : hp.quniform('lambda',0.01,2,0.01),
+#               'gamma' : hp.quniform('gamma',0.01,2,0.01),
+#               'n_estimators' : hp.quniform('n_estimators',1,1000,1), 
+#               'random_state' : hp.quniform('random_state',1,1000,1), 
+#               'min_samples_leaf' : hp.quniform('min_samples_leaf',1,30,1)} 
+
+# def objective_func(search_space):
+#     rf_clf = XGBClassifier(n_estimators=int(search_space['n_estimators'])
+#                             , max_depth=int(search_space['max_depth'])
+#                             ,random_state=int(search_space['random_state'])
+#                             ,min_samples_leaf=int(search_space['min_samples_leaf'])
+#                             ,gamma=int(search_space['gamma'])
+#                             ,colsample_bytree=int(search_space['colsample_bytree'])
+#                             ,min_child_weight=int(search_space['min_child_weight'])
+#                             ,learning_late=int(search_space['learning_late'])
+#                            )
+#     rf_clf.fit(train_data , target)
+#     pred = rf_clf.predict(test)
+#     submission1 = pd.read_csv('./submission chanchan.csv')
+#     del submission1['PassengerId']
+#     from sklearn.metrics import accuracy_score
+#     accuracy = accuracy_score(pred, submission1)
+#     return {'loss' : -accuracy, 'status' : STATUS_OK}
+# # from hyperopt import fmin, tpe, Trials
+
+
+# trials = Trials()
+
+# # fmin()함수를 호출. max_evals지정된 횟수만큼 반복 후 목적함수의 최소값을 가지는 최적 입력값 추출.
+# best = fmin(fn=objective_func,
+#             space=searchpara,
+#             algo=tpe.suggest,
+#             max_evals=1000, # 최대 반복 횟수를 지정합니다.
+#             trials=trials, 
+#             rstate=np.random.default_rng(seed=30))
+
+# print('best:', best)
+## XG부스트
+# clf = XGBClassifier(colsample_bytree = 0.6408627333049045, gamma = 0.26, learning_late = 0.18954276563841077, max_depth = 7, min_child_weight= 2 , min_samples_leaf= 17, n_estimators= 543, random_state= 469)
+# score6 = cross_val_score(clf, train_data, target, cv=k_fold, n_jobs=1, scoring=scoring)
+
+# print(score6.mean())
+# # # 점수 확인
+# random_state = [1200]
+
+# for rs in random_state:
+#      k_fold = KFold(n_splits=10, shuffle=True, random_state=100)
+#      clf = RandomForestClassifier(n_estimators=300, max_depth=5, max_features=3)
+#      scoring = 'accuracy'
+#      score = cross_val_score(clf, train_data, target, cv = k_fold, n_jobs=-1, scoring=scoring)
+
+# print(score.mean())
+# listr = []
+# for r in range(1,300):
+#     clf = RandomForestClassifier(
+#         max_depth=3
+#         , n_estimators=21
+#         , min_samples_leaf=5
+#         , random_state=3
+#         )
+#     clf.fit(train_data, target)
+#     pred = clf.predict(test)
+#     submission1 = pd.read_csv('./submission chanchan.csv')
+#     del submission1['PassengerId']
+#     from sklearn.metrics import accuracy_score
+#     accuracy = accuracy_score(pred, submission1)
+#     listr.append(accuracy)
+#     print(r, accuracy)
+# print(max(listr))
+# clf = XGBClassifier(colsample_bytree = 0.6408627333049045, gamma = 0.26, learning_late = 0.18954276563841077, max_depth = 7, min_child_weight= 2 , min_samples_leaf= 17, n_estimators= 543, random_state= 469)
+# clf.fit(train_data, target)
+
+# prediction = clf.predict(test)
+# prediction
+clf = RandomForestClassifier(n_estimators=600, max_depth=2, max_features=3)
+clf.fit(train_data, target)
+
+prediction = clf.predict(test)
+prediction
+## csv 변환
+submission1 = pd.read_csv('./submission chanchan.csv')
+del submission1['PassengerId']
+from sklearn.metrics import accuracy_score
+accuracy = accuracy_score(prediction,submission1)
+accuracy
+submission = pd.DataFrame(
+    {
+        "PassengerId":test["PassengerId"], 
+        "Survived":prediction
+    }
+)
+submission.to_csv('hhs.966.csv', index=False)
